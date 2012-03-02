@@ -19,12 +19,9 @@ class Natural
   CLEAR   = "\e[0m"
 
   def initialize(text, context=nil)
-
-    @text       = text
+    @text       = text.squeeze(' ').strip
     @context    = context
     @parse      = parse
-
-    @text = @text.split(' ').map{|a| a.strip}.select{|a| !a.blank?}.join(' ') # remove extra spaces between words
   end
   
   def text=(text)
