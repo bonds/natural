@@ -1,7 +1,8 @@
 require 'natural/expand'
 require 'natural/fragment'
 require 'natural/fragments/timeframes.rb'
-require 'natural/fragments/examples.rb'
+require 'natural/fragments/misc.rb'
+require 'natural/fragments/example.rb'
 
 class Natural
   require 'map_by_method'
