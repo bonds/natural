@@ -73,7 +73,12 @@ class Natural
       self.to_s.split(' ').size ** 2
     end
 
-    def self.find(text_to_search, looking_for, matches={}, match_class=self)
+    def self.find(options)
+      text_to_search = options[:text]
+      looking_for = options[:looking_for]
+      matches = options[:matches] || {}
+      match_class = options[:match_class] || self
+
       words = text_to_search.split(' ')
 
       case
@@ -93,7 +98,7 @@ class Natural
             end
 
             if !match
-              selection_corrected = Spelling.check(selection.singularize)
+              selection_corrected = Spelling.check(selection.singularize, options[:spellings])
               if selection_corrected && looking_for.include?(selection_corrected)
                 selection_corrected = selection_corrected.pluralize if selection.plural?
                 match = match_class.new(:ids => (first..last).to_a, :text => selection)
@@ -102,7 +107,7 @@ class Natural
             end
 
             if !match
-              synonym = (Synonym.check((selection_corrected || selection).singularize) & looking_for).first
+              synonym = (Synonym.check((selection_corrected || selection).singularize, options[:synonyms]) & looking_for).first
               if synonym
                 match = match_class.new(:ids => (first..last).to_a, :text => selection)
                 match << Synonym.new(:ids => (first..last).to_a, :text => selection.plural? ? synonym : synonym.pluralize)
@@ -110,7 +115,7 @@ class Natural
             end
 
             if !match 
-              expansion = (Expansion.check((selection_corrected || selection).singularize) & looking_for).first
+              expansion = (Expansion.check((selection_corrected || selection).singularize, options[:expansions]) & looking_for).first
               if expansion
                 match = match_class.new(:ids => (first..last).to_a, :text => selection)
                 match << Expansion.new(:ids => (first..last).to_a, :text => selection)
@@ -127,12 +132,12 @@ class Natural
       when looking_for.class <= Fragment
 
         return matches if matches[looking_for]
-        matches = klass.find(text_to_search, matches)
+        matches = klass.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
 
       when (looking_for.class == Hash && looking_for[:or]) || looking_for.class == Array
 
         looking_for.each do |term|
-          matches = Fragment.find(text_to_search, term, matches, match_class)
+          matches = Fragment.find(:text => text_to_search, :looking_for => term, :matches => matches, :match_class => match_class, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
         end
 
       when looking_for.class == Hash && looking_for[:and] # look for a sequence of strings and/or fragments
@@ -140,10 +145,10 @@ class Natural
 
         # first we find the starting term
         if looking_for.first.class == Class && looking_for.first <= Fragment
-          matches = looking_for.first.find(text_to_search, matches)
+          matches = looking_for.first.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
           starting_term_matches = matches[looking_for.first]
         else
-          starting_term_matches = Fragment.find(text_to_search, looking_for.first).values.first
+          starting_term_matches = Fragment.find(:text => text_to_search, :looking_for => looking_for.first, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first
         end
 
         # look for the next string/fragment in the sequence
@@ -151,7 +156,7 @@ class Natural
           fragments = [first_term]
           looking_for[1..-1].each do |term|
             if term.class == Class && term <= Fragment
-              matches = term.find(text_to_search, matches) if !matches[term]
+              matches = term.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]) if !matches[term]
               matches[term].each do |match|
                 if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
                   fragments << match
@@ -159,13 +164,13 @@ class Natural
               end
             elsif term.class == Array || term.class == String # handle strings and arrays of strings ORed together
               term_updated = term.class == Array ? term : [term]
-              (Fragment.find(text_to_search, term_updated).values.first || []).each do |match|
+              (Fragment.find(:text => text_to_search, :looking_for => term_updated, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first || []).each do |match|
                 if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
                   fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
                 end
               end
             elsif term.class == Hash
-              (Fragment.find(text_to_search, term).values.first || []).each do |match|
+              (Fragment.find(:text => text_to_search, :looking_for => term, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first || []).each do |match|
                 if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
                   fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
                 end
@@ -202,6 +207,33 @@ class Natural
   end
 
   class Unused < Fragment
+  end
+
+  class Spelling < Fragment
+    def self.check(selection, terms)
+      terms.each do |correct_spelling, alternative_spellings|
+        return correct_spelling if alternative_spellings.include?(selection)
+      end
+      nil
+    end
+  end
+
+  class Synonym < Fragment
+    def self.check(selection, terms)
+      terms.each do |set|
+        if set.include?(selection)
+          result = set - [selection]
+          return set - [selection] if !result.blank?
+        end
+      end
+      []
+    end
+  end
+
+  class Expansion < Fragment
+    def self.check(selection, terms)
+      terms[selection] || []
+    end
   end
 
 end

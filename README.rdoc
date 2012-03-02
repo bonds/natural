@@ -1,26 +1,19 @@
 = Natural
 
-== Quick Start
+Natural provides a framework for answering 'naturally' worded questions like 'how many books did I buy last month' or 'list my Facebook friends'.
+
+== Installation
+
+gem install natural
+
+== Example
 
 require 'natural'
-
-natural = Natural.new('how many days of the week start with the letter T')
-
-answer = natural.sets.flatten
-natural.filters.each {|f| answer = eval("answer.#{f}")}
-natural.aggregators.each {|a| answer = eval("answer.#{a}")}
-puts answer
-
-== Yup
-
-* parse the text looking for every possible match
-* choose the combination of fragments that gets the highest score
-
-then you can look walk the tree and apply the sets, filters, and aggregators as you see fit
+Natural.new('how many days of the week start with the letter T').answer
+puts natural.answer
 
 == Example Log
 
-1.9.3p125 (main):0 > natural = Natural.new('how many days of the week start with the letter T')
 [n][scor] 45 how many, days of the week, start with the letter t
 [n][scor] 41 days of the week, start with the letter t
 [n][scor] 31 how many, days, week, start with the letter t
@@ -50,11 +43,42 @@ then you can look walk the tree and apply the sets, filters, and aggregators as 
 [n]
 [n][orig] how many days of the week start with the letter T
 [n][used] how many days of the week start with the letter t
-=> #<Natural:0x007fa2b12852e8
- @context=nil,
- @parse=how many days of the week start with the letter t,
- @text="how many days of the week start with the letter T">
-1.9.3p125 (main):0 >
+
+== How To Use
+
+* gem install natural
+* create a class that inherits from Natural::Fragment
+* override class method 'find' to specify which phrases it should match
+* optional: override instance method 'data' to specify which data a match adds to the answer
+* optional: override instance method 'filters' to specify which method to call on each data set in the answer to filter out results
+* optional: override instance method 'aggregators' to specify which method to call on each data set to aggregate results
+* optional: override instance method 'score' to specify how to value a match
+
+This is a bit easier to understand by looking at an example, take a gander at: lib/natural/fragments/example.rb
+
+== Parsing the Input
+
+=== Simple Fragments
+
+=== Compound Fragments
+
+=== Alternative Spellings, Synonyms, and Expansions
+
+=== Scoring
+
+== Generating the Answer
+
+=== Sets
+
+=== Filters
+
+=== Aggregators
+
+=== Putting Them Together
+
+== Performance
+
+Natural has not (yet) been optimized for speed or memory. Natural works best with short questions, small sets of Fragments, and small sets of alternative spellings, synonyms, and expansions.
 
 == Contributing to Natural
  

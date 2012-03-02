@@ -18,7 +18,7 @@ Jeweler::Tasks.new do |gem|
   gem.homepage = "http://github.com/bonds/natural"
   gem.license = "MIT"
   gem.summary = "natural language parser"
-  gem.description = "insert long description here..."
+  gem.description = "Natural provides a framework for answering 'naturally' worded questions like 'how many books did I buy last month' or 'list my Facebook friends'."
   gem.email = "scott@ggr.com"
   gem.authors = ["Scott Bonds"]
   # dependencies defined in Gemfile

@@ -1,4 +1,5 @@
-require 'natural/expand'
+require 'natural/inflections'
+require 'natural/string'
 require 'natural/fragment'
 require 'natural/fragments/timeframes.rb'
 require 'natural/fragments/misc.rb'
@@ -18,9 +19,14 @@ class Natural
   YELLOW  = "\e[33m"
   CLEAR   = "\e[0m"
 
-  def initialize(text, context=nil)
+  DEFAULT_SPELLINGS   = {'blu-ray' => ['bluray', 'blueray', 'blue ray', 'blu ray']}
+  DEFAULT_SYNONYMS    = [['cd', 'audio cd'], ['food', 'eat', 'dine']]
+  DEFAULT_EXPANSIONS  = {'food' => ['grocery', 'eat out', 'eating out', 'dining out', 'dine out', 'dine in'], 'music' => ['audio cd', 'audio tape'], 'movie' => ['blu-ray', 'dvd', 'video']}
+
+  def initialize(text, options={})
     @text       = text.squeeze(' ').strip
-    @context    = context
+    @options    = options
+    
     @parse      = parse
   end
   
@@ -29,8 +35,8 @@ class Natural
     parse
   end
   
-  def context=(context)
-    @context = context
+  def options=(options)
+    @options = options
     parse
   end
   
@@ -38,10 +44,11 @@ class Natural
     return @parse if @parse
 
     # search for all possible matches using all the different fragment classes
-    tag_classes = ObjectSpace.each_object(Class).select {|a| a < Natural::Fragment && a != Natural::Unused}
+    fragment_classes = @options[:fragment_classes] || ObjectSpace.each_object(Class)
+    fragment_classes = fragment_classes.select {|a| a < Natural::Fragment && !a.to_s.start_with?('Natural::')}
     matches_by_class = {}
-    tag_classes.each do |klass|
-      matches_by_class = klass.find(@text, matches_by_class)
+    fragment_classes.each do |klass|
+      matches_by_class = klass.find(:text => @text, :matches => matches_by_class, :spellings => @options[:spellings] || DEFAULT_SPELLINGS, :synonyms => @options[:synonyms] || DEFAULT_SYNONYMS, :expansions => @options[:expansions] || DEFAULT_EXPANSIONS)
     end
 
     # find all valid combinations, choose the one with the highest score
@@ -68,8 +75,8 @@ class Natural
       @@logger.debug("[n][tree] #{line.gsub("\n", '')}")
     end
     @@logger.debug("[n]")
-    @@logger.info("[n][orig] #{@text}" + (@context ? " (#{@context})" : ""))
-    @@logger.info("[n][used] #{interpretation}" + (@context ? " (#{@context})" : ""))
+    @@logger.info("[n][orig] #{@text}" + (@options[:context] ? " (#{@options[:context]})" : ""))
+    @@logger.info("[n][used] #{interpretation}" + (@options[:context] ? " (#{@options[:context]})" : ""))
 
     @parse
   end
@@ -79,16 +86,11 @@ class Natural
     parse
   end
 
-  def sets
-    @parse.children.map_by_data(@context).select{|a| !a.blank?}
-  end
-
-  def filters
-    @parse.children.map_by_all_filters.select{|a| !a.blank?}
-  end
-
-  def aggregators
-    @parse.children.map_by_aggregator.select{|a| !a.blank?}
+  def answer
+    result = @parse.children.map_by_data(@options[:context]).select{|a| !a.blank?}.flatten
+    @parse.children.map_by_all_filters.select{|a| !a.blank?}.each {|f| result = eval("result.#{f}")}
+    @parse.children.map_by_aggregator.select{|a| !a.blank?}.each {|a| result = eval("result.#{a}")}
+    result
   end
     
   private
@@ -98,7 +100,7 @@ class Natural
     @parse.children.each do |node|
       result += ' '
       # result += YELLOW if @automatic_words && !(@automatic_words & node.ids).blank?
-      if !node.all_filters.blank? || node.data(@context) || node.aggregator
+      if !node.all_filters.blank? || node.data(@options[:context]) || node.aggregator
         result += node.to_s(:without_edits => true)
       elsif crossout == true
         result += node.to_s.gsub(/[a-zA-Z]/,'-')
