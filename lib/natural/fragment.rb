@@ -1,15 +1,13 @@
 class Natural
-
-  GREEN = "\e[32m"
-  CLEAR = "\e[0m"
+  require 'tree'
 
   class Fragment < Tree::TreeNode
-    attr_accessor :text, :score, :filter, :accumulator
+    attr_accessor :text, :score, :filter, :aggregator
 
     def initialize(options={})
       @ids = options[:ids]
       self.text = options[:text]
-      super("#{GREEN}#{options[:text]}#{CLEAR} #{self.class.to_s.split('::')[1].underscore} (#{self.id_range})", options[:text])
+      super("#{GREEN}#{options[:text]}#{CLEAR} #{self.class.to_s.split('::').last.underscore} (#{self.id_range})", options[:text])
     end
 
     # recurse to the leaves and print out the id range of the underyling words
@@ -67,7 +65,7 @@ class Natural
       result
     end
 
-    def data(user)
+    def data(context=nil)
       nil
     end
 
@@ -119,8 +117,8 @@ class Natural
               end
             end
 
+            matches[match_class] = [] if !matches[match_class]
             if match
-              matches[match_class] = [] if !matches[match_class]
               matches[match_class] << match
             end
           end
@@ -138,7 +136,6 @@ class Natural
         end
 
       when looking_for.class == Hash && looking_for[:and] # look for a sequence of strings and/or fragments
-        
         looking_for = looking_for[:and]
 
         # first we find the starting term
@@ -154,11 +151,10 @@ class Natural
           fragments = [first_term]
           looking_for[1..-1].each do |term|
             if term.class == Class && term <= Fragment
-              if matches[term]
-                matches[term].each do |match|
-                  if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
-                    fragments << match
-                  end
+              matches = term.find(text_to_search, matches) if !matches[term]
+              matches[term].each do |match|
+                if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
+                  fragments << match
                 end
               end
             elsif term.class == Array || term.class == String # handle strings and arrays of strings ORed together
@@ -168,15 +164,22 @@ class Natural
                   fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
                 end
               end
+            elsif term.class == Hash
+              (Fragment.find(text_to_search, term).values.first || []).each do |match|
+                if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
+                  fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
+                end
+              end
             else # turn nils into fragments
               last_fragment = fragments.select {|a| a}.last
               id = last_fragment.ids.last + 1
-              fragments << Fragment.new(:ids => id, :text => words[id])
+              fragments << Fragment.new(:ids => [id], :text => words[id])
             end
           end
 
           # found a match
-          looking_for_updated = looking_for.map{|a| (a.class == String || a.class == Array || a.class == NilClass) ? Fragment : a}
+          looking_for_updated = looking_for.map{|a| [String, Array, Hash, NilClass].include?(a.class) ? Fragment : a}
+
           if fragments.map{|a| a.class} == looking_for_updated
             ids = (fragments.first.ids.first..fragments.last.ids.last).to_a
             text = fragments.inject('') {|memo, fragment| memo += fragment.to_s + ' '}.strip
@@ -184,8 +187,9 @@ class Natural
             fragments.each do |fragment|
               match << fragment
             end
+
+            matches[match_class] = [] if !matches[match_class]
             if match
-              matches[match_class] = [] if !matches[match_class]
               matches[match_class] << match
             end
           end
@@ -197,7 +201,7 @@ class Natural
 
   end
 
-  class UnusedTerm < Fragment
+  class Unused < Fragment
   end
 
 end

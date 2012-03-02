@@ -1,8 +1,62 @@
-= natural
+= Natural
 
-Description goes here.
+== Quick Start
 
-== Contributing to natural
+require 'natural'
+
+natural = Natural.new('how many days of the week start with the letter T')
+
+answer = natural.sets.flatten
+natural.filters.each {|f| answer = eval("answer.#{f}")}
+natural.aggregators.each {|a| answer = eval("answer.#{a}")}
+puts answer
+
+== Yup
+
+* parse the text looking for every possible match
+* choose the combination of fragments that gets the highest score
+
+then you can look walk the tree and apply the sets, filters, and aggregators as you see fit
+
+== Example Log
+
+1.9.3p125 (main):0 > natural = Natural.new('how many days of the week start with the letter T')
+[n][scor] 45 how many, days of the week, start with the letter t
+[n][scor] 41 days of the week, start with the letter t
+[n][scor] 31 how many, days, week, start with the letter t
+[n][scor] 30 how many, week, start with the letter t
+[n][scor] 30 how many, days, start with the letter t
+[n][scor] 29 how many, start with the letter t
+[n][scor] 27 days, week, start with the letter t
+[n][scor] 26 days, start with the letter t
+[n][scor] 26 week, start with the letter t
+[n][scor] 25 start with the letter t
+[n][scor] 20 how many, days of the week
+[n][scor] 16 days of the week
+[n][scor] 06 how many, days, week
+[n][scor] 05 how many, days
+[n][scor] 05 how many, week
+[n][scor] 04 how many
+[n][scor] 02 days, week
+[n][scor] 01 days
+[n][scor] 01 week
+[n]
+[n][tree] * how many days of the week start with the letter T fragment (0..10)
+[n][tree] |---> how many count (0..1)
+[n][tree] |---> days of the week day_names (2..5)
+[n][tree] +---+ start with the letter t starts_with_letter (6..10)
+[n][tree]     |---> start with the letter fragment (6..9)
+[n][tree]     +---> t fragment (10)
+[n]
+[n][orig] how many days of the week start with the letter T
+[n][used] how many days of the week start with the letter t
+=> #<Natural:0x007fa2b12852e8
+ @context=nil,
+ @parse=how many days of the week start with the letter t,
+ @text="how many days of the week start with the letter T">
+1.9.3p125 (main):0 >
+
+== Contributing to Natural
  
 * Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet.
 * Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it.

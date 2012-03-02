@@ -1,6 +1,9 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    activesupport (3.2.1)
+      i18n (~> 0.6)
+      multi_json (~> 1.0)
     builder (3.0.0)
     cucumber (1.1.9)
       builder (>= 2.1.2)
@@ -12,6 +15,7 @@ GEM
     gherkin (2.9.0)
       json (>= 1.4.6)
     git (1.2.5)
+    i18n (0.6.0)
     jeweler (1.8.3)
       bundler (~> 1.0)
       git (>= 1.2.5)
@@ -19,6 +23,7 @@ GEM
       rdoc
     json (1.6.5)
     logger (1.2.8)
+    map_by_method (0.8.3)
     multi_json (1.1.0)
     rake (0.9.2.2)
     rdoc (3.12)
@@ -42,10 +47,12 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  activesupport
   bundler (~> 1.0.0)
   cucumber
   jeweler (~> 1.8.3)
   logger
+  map_by_method
   rdoc (~> 3.12)
   rspec (~> 2.8.0)
   rubytree
