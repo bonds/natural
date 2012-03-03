@@ -1,4 +1,4 @@
-# how many days of the week start with the letter T
+# how many days of the week start with the letter t
 
 # e.g. how many
 class Count < Natural::Fragment
@@ -20,7 +20,7 @@ class DayNames < Natural::Fragment
   end
 end
 
-# e.g. start with the letter A
+# e.g. start with the letter t
 class StartsWithLetter < Natural::Fragment
   def self.find(options)
     super options.merge(:looking_for => {:and => ['start with the letter', {:or => ('a'..'z').to_a}]})

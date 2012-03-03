@@ -1,5 +1,6 @@
 require 'natural/inflections'
 require 'natural/string'
+require 'natural/array'
 require 'natural/fragment'
 require 'natural/fragments/timeframes.rb'
 require 'natural/fragments/misc.rb'
@@ -19,8 +20,8 @@ class Natural
   YELLOW  = "\e[33m"
   CLEAR   = "\e[0m"
 
-  DEFAULT_SPELLINGS   = {'blu-ray' => ['bluray', 'blueray', 'blue ray', 'blu ray']}
-  DEFAULT_SYNONYMS    = [['cd', 'audio cd'], ['food', 'eat', 'dine']]
+  DEFAULT_SPELLINGS   = {'week' => ['wek', 'weeek']}
+  DEFAULT_SYNONYMS    = {'1' => ['start', 'begin', 'commence'], '2' => ['stop', 'end', 'finish', 'conclude']}
   DEFAULT_EXPANSIONS  = {'food' => ['grocery', 'eat out', 'eating out', 'dining out', 'dine out', 'dine in'], 'music' => ['audio cd', 'audio tape'], 'movie' => ['blu-ray', 'dvd', 'video']}
 
   def initialize(text, options={})
@@ -44,11 +45,21 @@ class Natural
     return @parse if @parse
 
     # search for all possible matches using all the different fragment classes
-    fragment_classes = @options[:fragment_classes] || ObjectSpace.each_object(Class)
-    fragment_classes = fragment_classes.select {|a| a < Natural::Fragment && !a.to_s.start_with?('Natural::')}
     matches_by_class = {}
+    fragment_classes = @options[:fragment_classes] || ObjectSpace.each_object(Class)
+    fragment_classes = fragment_classes.select {|a| a < Natural::Fragment && a != Natural::Unused}
+    find_options = {
+      :text => @text, 
+      :matches => matches_by_class, 
+      :spellings => @options[:spellings] || DEFAULT_SPELLINGS, 
+      :synonyms => @options[:synonyms] || DEFAULT_SYNONYMS, 
+      :expansions => @options[:expansions] || DEFAULT_EXPANSIONS
+    }
+    ObjectSpace.each_object(Class).select {|a| a < Natural::Alternative}.each do |klass| 
+      matches_by_class = klass.find(find_options)
+    end
     fragment_classes.each do |klass|
-      matches_by_class = klass.find(:text => @text, :matches => matches_by_class, :spellings => @options[:spellings] || DEFAULT_SPELLINGS, :synonyms => @options[:synonyms] || DEFAULT_SYNONYMS, :expansions => @options[:expansions] || DEFAULT_EXPANSIONS)
+      matches_by_class = klass.find(find_options)
     end
 
     # find all valid combinations, choose the one with the highest score

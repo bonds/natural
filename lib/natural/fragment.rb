@@ -36,13 +36,13 @@ class Natural
     # recurse to the leaves and print out all the words, applying all edits along the way
     def to_s(options={})
       if self.is_leaf?
-        if options[:without_edits] && [Spelling, Synonym].include?(self.class)
+        if (self.parent.class < Natural::Alternative) && !options[:without_edits]
           self.parent.text
         else
           self.text
         end
       else
-        self.children.inject('') {|result, item| (result += item.text + ' ')}.strip
+        self.children.inject('') {|result, item| (result += item.to_s + ' ')}.strip
       end
     end
 
@@ -76,79 +76,108 @@ class Natural
     def self.find(options)
       text_to_search = options[:text]
       looking_for = options[:looking_for]
-      matches = options[:matches] || {}
+      old_matches = options[:matches] || {}
+      if options[:matches] && (options[:merge_results].class == NilClass || options[:merge_results])
+        new_matches = options[:matches]
+      else
+        new_matches = {}
+      end
       match_class = options[:match_class] || self
-
       words = text_to_search.split(' ')
-
+# puts "class: #{self}"
       case
       when looking_for.class == String || (looking_for.class == Array && looking_for.all? {|a| a.class == String})
-        return matches if matches[match_class]
+        return old_matches if old_matches[match_class]
         looking_for = [looking_for] if looking_for.class != Array
         looking_for = looking_for.map{|a| a.singularize.downcase}
+
         # look for the longest possible matches and work our way down to the short ones
         0.upto(words.size-1) do |first|
           (words.size-1).downto(first) do |last|
             match = nil
-            selection = (first..last).inject('') {|result, i| result += words[i] + ' '}.strip.downcase
+            selection = words[(first..last)].join(' ').strip.downcase
 
-            # puts "#{selection} vs #{phrases_to_look_for}"
             if looking_for.include?(selection.singularize.downcase)
               match = match_class.new(:ids => (first..last).to_a, :text => selection)
             end
 
-            if !match
-              selection_corrected = Spelling.check(selection.singularize, options[:spellings])
-              if selection_corrected && looking_for.include?(selection_corrected)
-                selection_corrected = selection_corrected.pluralize if selection.plural?
-                match = match_class.new(:ids => (first..last).to_a, :text => selection)
-                match << Spelling.new(:ids => (first..last).to_a, :text => selection_corrected)
+            # didn't find a simple match, try swapping in alternative text
+            if !match && !(match_class < Natural::Alternative)
+              fragments = old_matches.select {|k,v| k < Natural::Alternative && !v.blank?}.values.flatten.select {|a| a.ids.first >= first && a.ids.last <= last}
+              # assemble a list of all the possible, non-overlapping swaps
+              combinations = (1..fragments.size).inject([]) do |memo, i| 
+                fragments.combination(i).each do |combo|
+                  if !combo.combination(2).any? {|a| (a[0].ids.first..a[0].ids.last).overlaps?(a[1].ids.first..a[1].ids.last)}
+                    memo << combo
+                  end
+                end                
+                memo
+              end
+
+              # expand all the fragments into arrays of replacements then find every possible combination
+              combinations = combinations.map do |combo|
+                if combo.size == 1
+                  combo.first.replacements(options).map{|a| [a]}
+                else
+                  combo[1..-1].inject(combo.first.replacements(options)) do |m,a| 
+                    m = m.product(a.replacements(options))
+                  end
+                end
+              end.flatten(1)
+# if looking_for == ["start with the letter"]
+#   binding.pry
+# end
+
+              combinations.each do |combo|
+                alternative_words = words.clone
+                alternative_fragments = []
+
+                combo.each do |fragment|
+                  alternative_words.slice!(fragment.ids.first..fragment.ids.last)
+                  alternative_words.insert(fragment.ids.first, fragment.to_s)
+                  alternative_fragments << fragment
+                end
+                alternative_selection =  alternative_words[(first..last)].join(' ').strip.downcase
+
+                if looking_for.include?(alternative_selection.singularize.downcase)
+                  match = match_class.new(:ids => (first..last).to_a, :text => selection)
+                  leftovers = ((first..last).to_a - combo.map {|a| a.ids}.flatten).to_ranges
+                  leftovers.each do |range|
+                    alternative_fragments << Fragment.new(:ids => range.to_a, :text => words[range].join(' '))
+                  end
+                  alternative_fragments.sort_by {|a| a.ids.first}.each {|a| match << a}
+                end
+
               end
             end
 
-            if !match
-              synonym = (Synonym.check((selection_corrected || selection).singularize, options[:synonyms]) & looking_for).first
-              if synonym
-                match = match_class.new(:ids => (first..last).to_a, :text => selection)
-                match << Synonym.new(:ids => (first..last).to_a, :text => selection.plural? ? synonym : synonym.pluralize)
-              end
-            end
-
-            if !match 
-              expansion = (Expansion.check((selection_corrected || selection).singularize, options[:expansions]) & looking_for).first
-              if expansion
-                match = match_class.new(:ids => (first..last).to_a, :text => selection)
-                match << Expansion.new(:ids => (first..last).to_a, :text => selection)
-              end
-            end
-
-            matches[match_class] = [] if !matches[match_class]
+            new_matches[match_class] = [] if !new_matches[match_class]
             if match
-              matches[match_class] << match
+              new_matches[match_class] << match
             end
           end
         end
 
       when looking_for.class <= Fragment
 
-        return matches if matches[looking_for]
-        matches = klass.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
+        return old_matches if old_matches[looking_for]
+        new_matches = klass.find(:text => text_to_search, :matches => old_matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
 
       when (looking_for.class == Hash && looking_for[:or]) || looking_for.class == Array
 
         looking_for.each do |term|
-          matches = Fragment.find(:text => text_to_search, :looking_for => term, :matches => matches, :match_class => match_class, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
+          new_matches = Fragment.find(:text => text_to_search, :looking_for => term, :matches => old_matches, :match_class => match_class, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
         end
 
       when looking_for.class == Hash && looking_for[:and] # look for a sequence of strings and/or fragments
         looking_for = looking_for[:and]
-
         # first we find the starting term
         if looking_for.first.class == Class && looking_for.first <= Fragment
-          matches = looking_for.first.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
-          starting_term_matches = matches[looking_for.first]
+          new_matches = looking_for.first.find(:text => text_to_search, :matches => old_matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions])
+          starting_term_matches = old_matches[looking_for.first]
         else
-          starting_term_matches = Fragment.find(:text => text_to_search, :looking_for => looking_for.first, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first
+          starting_term_matches = Fragment.find(options.merge(:looking_for => looking_for.first, :merge_results => false)).values.first
+          # binding.pry
         end
 
         # look for the next string/fragment in the sequence
@@ -156,21 +185,15 @@ class Natural
           fragments = [first_term]
           looking_for[1..-1].each do |term|
             if term.class == Class && term <= Fragment
-              matches = term.find(:text => text_to_search, :matches => matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]) if !matches[term]
-              matches[term].each do |match|
+              new_matches = term.find(:text => text_to_search, :matches => old_matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]) if !old_matches[term]
+              new_matches[term].each do |match|
                 if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
                   fragments << match
                 end
               end
-            elsif term.class == Array || term.class == String # handle strings and arrays of strings ORed together
-              term_updated = term.class == Array ? term : [term]
+            elsif [Array, Hash, String].include?(term.class)
+              term_updated = term.class == String ? [term] : term
               (Fragment.find(:text => text_to_search, :looking_for => term_updated, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first || []).each do |match|
-                if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
-                  fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
-                end
-              end
-            elsif term.class == Hash
-              (Fragment.find(:text => text_to_search, :looking_for => term, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]).values.first || []).each do |match|
                 if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
                   fragments << Fragment.new(:ids => match.ids, :text => match.to_s)
                 end
@@ -193,47 +216,69 @@ class Natural
               match << fragment
             end
 
-            matches[match_class] = [] if !matches[match_class]
+            new_matches[match_class] = [] if !new_matches[match_class]
             if match
-              matches[match_class] << match
+              new_matches[match_class] << match
             end
           end
         end
       end
 
-      matches
+      new_matches
     end
 
+  end
+
+  class Word < Fragment
   end
 
   class Unused < Fragment
   end
 
-  class Spelling < Fragment
-    def self.check(selection, terms)
-      terms.each do |correct_spelling, alternative_spellings|
-        return correct_spelling if alternative_spellings.include?(selection)
-      end
-      nil
-    end
+  class Alternative < Fragment
   end
 
-  class Synonym < Fragment
-    def self.check(selection, terms)
-      terms.each do |set|
-        if set.include?(selection)
-          result = set - [selection]
-          return set - [selection] if !result.blank?
+  class Spelling < Alternative
+    def self.find(options)
+      super options.merge(:looking_for => options[:spellings].values.flatten)
+    end
+    def replacements(options)
+      options[:spellings].each do |canonical, alternatives|
+        if alternatives.include?(self.to_s)
+          return [canonical].map do |alternative_text|
+            alternative = self.class.new(:ids => self.ids, :text => alternative_text)
+            alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
+            alternative
+          end
         end
       end
-      []
     end
   end
 
-  class Expansion < Fragment
-    def self.check(selection, terms)
-      terms[selection] || []
+  class Synonym < Alternative
+    def self.find(options)
+      super options.merge(:looking_for => options[:synonyms].values.flatten)
+    end
+    def replacements(options)
+      options[:synonyms].values.each do |alternatives|
+        if alternatives.include?(self.to_s)
+          return (alternatives - [self.to_s]).map do |alternative_text|
+            alternative = self.class.new(:ids => self.ids, :text => alternative_text)
+            alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
+            alternative
+          end
+        end
+      end
     end
   end
+
+  # class Expansion < Alternative
+  #   def self.find(options)
+  #     super options.merge(:looking_for => options[:expansions].keys)
+  #   end
+  #   def replacement(options)
+  #     options[:expansions][self.to_s]
+  #   end
+  # end
 
 end
