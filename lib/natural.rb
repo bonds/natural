@@ -44,6 +44,7 @@ class Natural
   def parse
     return @parse if @parse
 
+    start_at = Time.now
     # search for all possible matches using all the different fragment classes
     matches_by_class = {}
     fragment_classes = @options[:fragment_classes] || ObjectSpace.each_object(Class)
@@ -63,11 +64,18 @@ class Natural
       matches_by_class = klass.find(find_options)
     end
 
+    matching_at = Time.now
+    @@logger.debug "[n][perf] matching took #{(matching_at - start_at).seconds.round(1)} seconds"
+
     # find all valid combinations, choose the one with the highest score
     sequences = []
     sequences = assemble_sequences(matches_by_class.values.flatten)
     sequences = sequences.uniq.sort {|a,b| b.map_by_score.sum <=> a.map_by_score.sum}
     fragments = sequences.first || []
+
+    scoring_at = Time.now
+    @@logger.debug "[n][perf] scoring took #{(scoring_at - matching_at).seconds.round(1)} seconds"
+    @@logger.debug "[n]"
 
     # tag the leftover words as unused
     remaining_words = (0..@text.split(' ').size-1).to_a - (!fragments.blank? ? fragments.map_by_ids.flatten : [])

@@ -82,6 +82,13 @@ Natural.new('how many days of the wek beginn with the letter T').answer
 [n][orig] how many days of the wek begin with the letter T
 [n][used] how many days of the week start with the letter t
 
+Natural.new('movies').answer
+
+[n][tree] * movies fragment (0)
+[n][tree] +---+ blu-rays blu_ray (0)
+[n][tree]     +---+ blu-rays expansion (0)
+[n][tree]         +---> movies fragment (0)
+
 === Scoring
 
 == Generating the Answer
