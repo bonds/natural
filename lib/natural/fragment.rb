@@ -36,11 +36,13 @@ class Natural
     # recurse to the leaves and print out all the words, applying all edits along the way
     def to_s(options={})
       if self.is_leaf?
-        if (self.parent.class < Natural::Alternative) && !options[:without_edits]
-          self.parent.text
-        else
-          self.text
+        location = self
+        if !options[:without_edits]
+          while !location.is_root? && location.parent.class < Natural::Alternative do
+            location = location.parent
+          end
         end
+        location.text
       else
         self.children.inject('') {|result, item| (result += item.to_s + ' ')}.strip
       end
@@ -73,6 +75,16 @@ class Natural
       self.to_s.split(' ').size ** 2
     end
 
+    def clone(height=nil)
+      result = self.class.new(:ids => self.ids, :text => self.text)
+      if !height || height > 0
+        self.children.each do |child|
+          result << child.clone(height ? height-1 : nil)
+        end
+      end
+      result
+    end
+
     def self.find(options)
       text_to_search = options[:text]
       looking_for = options[:looking_for]
@@ -84,7 +96,7 @@ class Natural
       end
       match_class = options[:match_class] || self
       words = text_to_search.split(' ')
-# puts "class: #{self}"
+
       case
       when looking_for.class == String || (looking_for.class == Array && looking_for.all? {|a| a.class == String})
         return old_matches if old_matches[match_class]
@@ -101,9 +113,10 @@ class Natural
               match = match_class.new(:ids => (first..last).to_a, :text => selection)
             end
 
-            # didn't find a simple match, try swapping in alternative text
+            # didn't find a simple match, try swapping some or all words for alternatives and try again
             if !match && !(match_class < Natural::Alternative)
               fragments = old_matches.select {|k,v| k < Natural::Alternative && !v.blank?}.values.flatten.select {|a| a.ids.first >= first && a.ids.last <= last}
+
               # assemble a list of all the possible, non-overlapping swaps
               combinations = (1..fragments.size).inject([]) do |memo, i| 
                 fragments.combination(i).each do |combo|
@@ -114,20 +127,6 @@ class Natural
                 memo
               end
 
-              # expand all the fragments into arrays of replacements then find every possible combination
-              combinations = combinations.map do |combo|
-                if combo.size == 1
-                  combo.first.replacements(options).map{|a| [a]}
-                else
-                  combo[1..-1].inject(combo.first.replacements(options)) do |m,a| 
-                    m = m.product(a.replacements(options))
-                  end
-                end
-              end.flatten(1)
-# if looking_for == ["start with the letter"]
-#   binding.pry
-# end
-
               combinations.each do |combo|
                 alternative_words = words.clone
                 alternative_fragments = []
@@ -137,10 +136,10 @@ class Natural
                   alternative_words.insert(fragment.ids.first, fragment.to_s)
                   alternative_fragments << fragment
                 end
-                alternative_selection =  alternative_words[(first..last)].join(' ').strip.downcase
+                alternative_selection = alternative_words[(first..last)].join(' ').strip.downcase
 
                 if looking_for.include?(alternative_selection.singularize.downcase)
-                  match = match_class.new(:ids => (first..last).to_a, :text => selection)
+                  match = match_class.new(:ids => (first..last).to_a, :text => alternative_selection)
                   leftovers = ((first..last).to_a - combo.map {|a| a.ids}.flatten).to_ranges
                   leftovers.each do |range|
                     alternative_fragments << Fragment.new(:ids => range.to_a, :text => words[range].join(' '))
@@ -153,7 +152,11 @@ class Natural
 
             new_matches[match_class] = [] if !new_matches[match_class]
             if match
-              new_matches[match_class] << match
+              if match_class < Natural::Alternative
+                new_matches = recurse_alternatives(match, options)
+              else
+                new_matches[match_class] << match
+              end
             end
           end
         end
@@ -177,7 +180,6 @@ class Natural
           starting_term_matches = old_matches[looking_for.first]
         else
           starting_term_matches = Fragment.find(options.merge(:looking_for => looking_for.first, :merge_results => false)).values.first
-          # binding.pry
         end
 
         # look for the next string/fragment in the sequence
@@ -227,6 +229,29 @@ class Natural
       new_matches
     end
 
+    def self.recurse_alternatives(match, options)
+      new_matches = options[:matches]
+
+      match.replacements(options).each do |replacement|
+        new_matches[match_class] = [] if !new_matches[match.class]
+        new_matches[match.class] << replacement
+
+        unused_alternatives = ObjectSpace.each_object(Class).select {|a| a < Natural::Alternative}
+        replacement.breadth_each {|node| unused_alternatives -= [node.class]}
+
+        unused_alternatives.each do |alternative|
+          next_layer = alternative.find(options.merge(:text => replacement.to_s, :matches => {})).values.first
+          next_layer.each do |frag|
+            new_frag = frag.class.new(:ids => replacement.ids, :text => frag.text)
+            new_frag << replacement.clone
+            new_matches = recurse_alternatives(new_frag, options)
+          end
+        end
+      end
+
+      new_matches
+    end
+
   end
 
   class Word < Fragment
@@ -236,6 +261,9 @@ class Natural
   end
 
   class Alternative < Fragment
+    def score
+      super - 2
+    end
   end
 
   class Spelling < Alternative
@@ -246,9 +274,13 @@ class Natural
       options[:spellings].each do |canonical, alternatives|
         if alternatives.include?(self.to_s)
           return [canonical].map do |alternative_text|
-            alternative = self.class.new(:ids => self.ids, :text => alternative_text)
-            alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
-            alternative
+            if self.node_height == 0
+              alternative = self.class.new(:ids => self.ids, :text => alternative_text)
+              alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
+              alternative
+            else
+              [self]
+            end
           end
         end
       end
@@ -262,10 +294,15 @@ class Natural
     def replacements(options)
       options[:synonyms].values.each do |alternatives|
         if alternatives.include?(self.to_s)
+          # binding.pry
           return (alternatives - [self.to_s]).map do |alternative_text|
-            alternative = self.class.new(:ids => self.ids, :text => alternative_text)
-            alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
-            alternative
+            if self.node_height == 0
+              alternative = self.class.new(:ids => self.ids, :text => alternative_text)
+              alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
+              alternative
+            else
+              return [self]
+            end
           end
         end
       end

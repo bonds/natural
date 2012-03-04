@@ -20,7 +20,7 @@ class Natural
   YELLOW  = "\e[33m"
   CLEAR   = "\e[0m"
 
-  DEFAULT_SPELLINGS   = {'week' => ['wek', 'weeek']}
+  DEFAULT_SPELLINGS   = {'week' => ['wek', 'weeek'], 'begin' => ['beginn', 'beegin']}
   DEFAULT_SYNONYMS    = {'1' => ['start', 'begin', 'commence'], '2' => ['stop', 'end', 'finish', 'conclude']}
   DEFAULT_EXPANSIONS  = {'food' => ['grocery', 'eat out', 'eating out', 'dining out', 'dine out', 'dine in'], 'music' => ['audio cd', 'audio tape'], 'movie' => ['blu-ray', 'dvd', 'video']}
 
@@ -58,6 +58,7 @@ class Natural
     ObjectSpace.each_object(Class).select {|a| a < Natural::Alternative}.each do |klass| 
       matches_by_class = klass.find(find_options)
     end
+# binding.pry
     fragment_classes.each do |klass|
       matches_by_class = klass.find(find_options)
     end

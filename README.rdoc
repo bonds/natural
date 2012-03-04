@@ -63,18 +63,19 @@ This is a bit easier to understand by looking at an example, take a gander at: l
 
 === Alternative Spellings, Synonyms, and Expansions
 
-Natural.new('how many days of the wek begin with the letter T').answer
+Natural.new('how many days of the wek beginn with the letter T').answer
 
-[n][tree] * how many days of the wek begin with the letter T fragment (0..10)
+[n][tree] * how many days of the wek beginn with the letter T fragment (0..10)
 [n][tree] |---> how many count (0..1)
-[n][tree] |---+ days of the wek day_names (2..5)
+[n][tree] |---+ days of the week day_names (2..5)
 [n][tree] |   |---> days of the fragment (2..4)
-[n][tree] |   +---+ week spelling (5)
+[n][tree]     +---+ week spelling (5)
 [n][tree]         +---> wek fragment (5)
 [n][tree] +---+ start with the letter t starts_with_letter (6..10)
-[n][tree]     |---+ begin with the letter fragment (6..9)
+[n][tree]     |---+ start with the letter fragment (6..9)
 [n][tree] |       |---+ start synonym (6)
-[n][tree] |           +---> begin fragment (6)
+[n][tree] |           +---+ begin spelling (6)
+[n][tree]                 +---> beginn fragment (6)
 [n][tree] |       +---> with the letter fragment (7..9)
 [n][tree]     +---> t fragment (10)
 
