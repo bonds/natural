@@ -20,6 +20,13 @@ class DayNames < Natural::Fragment
   end
 end
 
+# e.g. blu-ray
+class BluRay < Natural::Fragment
+  def self.find(options)
+    super options.merge(:looking_for => ['blu-ray'])
+  end
+end
+
 # e.g. start with the letter t
 class StartsWithLetter < Natural::Fragment
   def self.find(options)

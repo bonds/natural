@@ -78,6 +78,9 @@ Natural.new('how many days of the wek beginn with the letter T').answer
 [n][tree]                 +---> beginn fragment (6)
 [n][tree] |       +---> with the letter fragment (7..9)
 [n][tree]     +---> t fragment (10)
+[n]
+[n][orig] how many days of the wek begin with the letter T
+[n][used] how many days of the week start with the letter t
 
 === Scoring
 
@@ -94,6 +97,10 @@ Natural.new('how many days of the wek beginn with the letter T').answer
 == Performance
 
 Natural has not (yet) been optimized for cpu or memory usage. Natural works best with short questions and small sets of Fragments, alternative spellings, synonyms, and expansions.
+
+== Testing
+
+TODO: write tests.
 
 == Contributing to Natural
  

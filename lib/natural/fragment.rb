@@ -272,9 +272,10 @@ class Natural
     end
     def replacements(options)
       options[:spellings].each do |canonical, alternatives|
-        if alternatives.include?(self.to_s)
+        if alternatives.include?(self.to_s.singularize.downcase)
           return [canonical].map do |alternative_text|
             if self.node_height == 0
+              alternative_text = alternative_text.pluralize if self.to_s.plural?
               alternative = self.class.new(:ids => self.ids, :text => alternative_text)
               alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
               alternative
@@ -293,10 +294,10 @@ class Natural
     end
     def replacements(options)
       options[:synonyms].values.each do |alternatives|
-        if alternatives.include?(self.to_s)
-          # binding.pry
+        if alternatives.include?(self.to_s.singularize.downcase)
           return (alternatives - [self.to_s]).map do |alternative_text|
             if self.node_height == 0
+              alternative_text = alternative_text.pluralize if self.to_s.plural?
               alternative = self.class.new(:ids => self.ids, :text => alternative_text)
               alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
               alternative
@@ -309,13 +310,23 @@ class Natural
     end
   end
 
-  # class Expansion < Alternative
-  #   def self.find(options)
-  #     super options.merge(:looking_for => options[:expansions].keys)
-  #   end
-  #   def replacement(options)
-  #     options[:expansions][self.to_s]
-  #   end
-  # end
+  class Expansion < Alternative
+    def self.find(options)
+      super options.merge(:looking_for => options[:expansions].keys)
+    end
+    def replacements(options)
+      alternatives = options[:expansions][self.to_s.singularize.downcase] || []
+      return alternatives.map do |alternative_text|
+        alternative_text = alternative_text.pluralize if self.to_s.plural?
+        if self.node_height == 0
+          alternative = self.class.new(:ids => self.ids, :text => alternative_text)
+          alternative << Fragment.new(:ids => (alternative.ids.first..alternative.ids.last).to_a, :text => options[:text].split(' ')[alternative.ids.first..alternative.ids.last].join(' '))
+          alternative
+        else
+          return [self]
+        end
+      end
+    end
+  end
 
 end
