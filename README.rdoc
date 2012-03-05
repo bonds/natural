@@ -70,6 +70,7 @@ Natural.new('how many days of the week start with the letter T').answer
 
 * create a class that inherits from Natural::Fragment
 * override class method 'find' to specify which phrases it should match
+- return a hash of all matches found so far, keys are the match class, values are the matches for that class
 * optional: override instance method 'data' to specify which data a match adds to the answer
 * optional: override instance method 'filters' to specify which method to call on each data set in the answer to filter out results
 * optional: override instance method 'aggregators' to specify which method to call on each data set to aggregate results
@@ -79,7 +80,24 @@ This is a bit easier to understand by looking at an example, take a gander at: l
 
 === Simple Fragments
 
+class Letter < Natural::Fragment
+  def self.find(options)
+    super options.merge(:looking_for => ('a'..'z').to_a)
+  end
+end
+
+==== Plurals and Inflectors
+
+Everything is singularized and downcased before being matched.
+lib/infections.rb can be used to customize the singularization behavior.
+
 === Compound Fragments
+
+class StartsWithLetter < Natural::Fragment
+  def self.find(options)
+    super options.merge(:looking_for => {:and => ['start with the letter', Letter]})
+  end
+end
 
 === Alternative Spellings, Synonyms, and Expansions
 
@@ -121,7 +139,7 @@ Natural.new('movies').answer
 
 === Putting Them Together
 
-conform to the Natural way and use the built in answer method or navigate the tree and assemble sets, filters, and aggregators however you want
+conform to the Natural way and use the built in answer method or navigate the tree and assemble sets, filters, and aggregators any way you want
 
 == Performance
 
@@ -129,7 +147,7 @@ Natural has not (yet) been optimized for cpu or memory usage. Natural works best
 
 == Testing
 
-TODO: write tests.
+Yah. Need to write these. :p
 
 == Contributing to Natural
  

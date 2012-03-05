@@ -41,7 +41,7 @@ Cucumber::Rake::Task.new(:features)
 
 task :default do 
   Rake::Task[:spec].invoke
-  Rake::Taks[:features].invoke
+  Rake::Task[:features].invoke
 end
 
 require 'rdoc/task'
