@@ -89,7 +89,7 @@ class Natural
     @parse = Fragment.new(:ids => (0..@text.split(' ').size-1).to_a, :text => @text)
     fragments.each {|a| @parse << a}
     
-    sequences.each {|a| @@logger.debug "[n][scor] #{a.map_by_score.sum.to_s.rjust(2, '0')} #{a.sort{|b,c| b.ids.first <=> c.ids.first}.join(', ')}"}
+    sequences.each {|a| @@logger.debug "[n][scor] #{a.map_by_score.sum.to_s.rjust(2, '0')} #{a.sort{|b,c| b.ids.first <=> c.ids.first}.join(' | ')}"}
     @@logger.debug("[n]")
     @parse.pretty_to_s.each_line do |line|
       @@logger.debug("[n][tree] #{line.gsub("\n", '')}")

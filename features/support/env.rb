@@ -1,3 +1,6 @@
+require 'simplecov'
+SimpleCov.start
+
 require 'bundler'
 begin
   Bundler.setup(:default, :development)
