@@ -34,6 +34,7 @@ Gem::Specification.new do |s|
     "lib/natural/fragments/timeframes.rb",
     "lib/natural/inflections.rb",
     "lib/natural/string.rb",
+    "natural.gemspec",
     "spec/array_spec.rb",
     "spec/natural_spec.rb",
     "spec/spec_helper.rb",
