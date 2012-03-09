@@ -10,10 +10,7 @@ class Natural
   require 'map_by_method'
   require 'active_support/inflector'
   require 'active_support/core_ext'
-
   require 'logger'
-  @@logger = Logger.new(STDOUT)
-  @@logger.level = Logger::DEBUG
 
   GREEN   = "\e[32m"
   RED     = "\e[31m"  
@@ -25,10 +22,17 @@ class Natural
   DEFAULT_EXPANSIONS  = {'food' => ['grocery', 'eat out', 'eating out', 'dining out', 'dine out', 'dine in'], 'music' => ['audio cd', 'audio tape'], 'movie' => ['blu-ray', 'dvd', 'video']}
 
   def initialize(text, options={})
-    @text       = text.squeeze(' ').strip
-    @options    = options
+    @text = text.squeeze(' ').strip
+    @options = options
+
+    if options[:logger]
+      @logger = options[:logger]
+    else
+      @logger = Logger.new(STDOUT)
+      @logger.level = Logger::DEBUG
+    end
     
-    @parse      = parse
+    @parse        = parse
   end
   
   def text=(text)
@@ -65,7 +69,7 @@ class Natural
     end
 
     matching_at = Time.now
-    @@logger.debug "[n][perf] matching took #{(matching_at - start_at).seconds.round(1)} seconds"
+    @logger.debug "[n][perf] matching took #{(matching_at - start_at).seconds.round(1)} seconds"
 
     # find all valid combinations, choose the one with the highest score
     sequences = []
@@ -74,8 +78,8 @@ class Natural
     fragments = sequences.first || []
 
     scoring_at = Time.now
-    @@logger.debug "[n][perf] scoring took #{(scoring_at - matching_at).seconds.round(1)} seconds"
-    @@logger.debug "[n]"
+    @logger.debug "[n][perf] scoring took #{(scoring_at - matching_at).seconds.round(1)} seconds"
+    @logger.debug "[n]"
 
     # tag the leftover words as unused
     remaining_words = (0..@text.split(' ').size-1).to_a - (!fragments.blank? ? fragments.map_by_ids.flatten : [])
@@ -89,14 +93,14 @@ class Natural
     @parse = Fragment.new(:ids => (0..@text.split(' ').size-1).to_a, :text => @text)
     fragments.each {|a| @parse << a}
     
-    sequences.each {|a| @@logger.debug "[n][scor] #{a.map_by_score.sum.to_s.rjust(2, '0')} #{a.sort{|b,c| b.ids.first <=> c.ids.first}.join(' | ')}"}
-    @@logger.debug("[n]")
+    sequences.each {|a| @logger.debug "[n][scor] #{a.map_by_score.sum.to_s.rjust(2, '0')} #{a.sort{|b,c| b.ids.first <=> c.ids.first}.join(' | ')}"}
+    @logger.debug("[n]")
     @parse.pretty_to_s.each_line do |line|
-      @@logger.debug("[n][tree] #{line.gsub("\n", '')}")
+      @logger.debug("[n][tree] #{line.gsub("\n", '')}")
     end
-    @@logger.debug("[n]")
-    @@logger.info("[n][orig] #{@text}" + (@options[:context] ? " (#{@options[:context]})" : ""))
-    @@logger.info("[n][used] #{interpretation}" + (@options[:context] ? " (#{@options[:context]})" : ""))
+    @logger.debug("[n]")
+    @logger.info("[n][orig] #{@text}" + (@options[:context] ? " (#{@options[:context]})" : ""))
+    @logger.info("[n][used] #{interpretation}" + (@options[:context] ? " (#{@options[:context]})" : ""))
 
     @parse
   end

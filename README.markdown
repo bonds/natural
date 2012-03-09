@@ -87,10 +87,6 @@ This is a bit easier to understand by looking at an example, take a gander at: l
 		end
 	end
 
-#### Plurals and Inflectors
-
-Everything is singularized and downcased before being matched. lib/infections.rb can be used to customize the singularization behavior.
-
 ### Compound Fragments
 
 	class StartsWithLetter < Natural::Fragment
@@ -127,6 +123,10 @@ Everything is singularized and downcased before being matched. lib/infections.rb
 	[n][tree]     +---+ blu-rays expansion (0)
 	[n][tree]         +---> movies fragment (0)
 
+### Plurals and Inflectors
+
+Everything is singularized and downcased before being matched. lib/infections.rb can be used to customize the singularization behavior.
+
 ### Scoring
 
 ## Generating the Answer
@@ -144,10 +144,6 @@ conform to the Natural way and use the built in answer method or navigate the tr
 ## Performance
 
 Natural has not (yet) been optimized for cpu or memory usage. Natural works best with short questions and a small vocabulary.
-
-## Testing
-
-Yah. Need to write these. :p
 
 ## Contributing to Natural
  
