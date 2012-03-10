@@ -125,7 +125,7 @@ This is a bit easier to understand by looking at an example, take a gander at: l
 
 ### Plurals and Inflectors
 
-Everything is singularized and downcased before being matched. lib/infections.rb can be used to customize the singularization behavior.
+Everything is singularized and downcased before being matched. `lib/natural/inflections.rb` can be used to customize the singularization behavior.
 
 ### Scoring
 
