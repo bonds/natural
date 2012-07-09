@@ -53,3 +53,8 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
+
+desc "Open an irb session preloaded with this library"
+task :c do
+  exec "irb -rubygems -I lib -r ./lib/natural.rb"
+end
