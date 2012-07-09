@@ -5,6 +5,7 @@ require 'natural/fragment'
 require 'natural/fragments/timeframes.rb'
 require 'natural/fragments/misc.rb'
 require 'natural/fragments/example.rb'
+require 'pry'
 
 class Natural
   require 'map_by_method'
@@ -17,9 +18,12 @@ class Natural
   YELLOW  = "\e[33m"
   CLEAR   = "\e[0m"
 
+  MATCHING_OPTIONS    = [:most_points, :first_match]
+
   DEFAULT_SPELLINGS   = {'week' => ['wek', 'weeek'], 'begin' => ['beginn', 'beegin']}
   DEFAULT_SYNONYMS    = {'1' => ['start', 'begin', 'commence'], '2' => ['stop', 'end', 'finish', 'conclude']}
   DEFAULT_EXPANSIONS  = {'food' => ['grocery', 'eat out', 'eating out', 'dining out', 'dine out', 'dine in'], 'music' => ['audio cd', 'audio tape'], 'movie' => ['blu-ray', 'dvd', 'video']}
+  DEFAULT_MATCHING    = :most_points
 
   def initialize(text, options={})
     @text = text.squeeze(' ').strip
@@ -49,6 +53,7 @@ class Natural
     return @parse if @parse
 
     start_at = Time.now
+
     # search for all possible matches using all the different fragment classes
     matches_by_class = {}
     fragment_classes = @options[:fragment_classes] || ObjectSpace.each_object(Class)
@@ -56,16 +61,27 @@ class Natural
     find_options = {
       :text => @text, 
       :matches => matches_by_class, 
+      :matching => @options[:matching] || DEFAULT_MATCHING,
       :spellings => @options[:spellings] || DEFAULT_SPELLINGS, 
       :synonyms => @options[:synonyms] || DEFAULT_SYNONYMS, 
       :expansions => @options[:expansions] || DEFAULT_EXPANSIONS
     }
-    ObjectSpace.each_object(Class).select {|a| a < Natural::Alternative}.each do |klass| 
-      matches_by_class = klass.find(find_options)
-    end
-# binding.pry
-    fragment_classes.each do |klass|
-      matches_by_class = klass.find(find_options)
+
+    if find_options[:matching] == :first_match
+      # once a match has been found, exclude those words from further consideration
+      # can help speed things up, but requires you order the candidate fragment_classes carefully
+      fragment_classes.each do |klass|
+        new_options = find_options.dup
+        new_options[:ignore] = matches_by_class.values.flatten.select{|a| a}.map_by_ids.flatten.uniq.sort
+        matches_by_class[klass] = klass.find(new_options)[klass] if klass.find(new_options)[klass]
+      end
+    else
+      ObjectSpace.each_object(Class).select {|a| a < Natural::Alternative}.each do |klass| 
+        matches_by_class = klass.find(find_options)
+      end
+      fragment_classes.each do |klass|
+        matches_by_class = klass.find(find_options)
+      end
     end
 
     matching_at = Time.now

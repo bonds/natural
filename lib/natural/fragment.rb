@@ -87,6 +87,7 @@ class Natural
 
     def self.find(options)
       text_to_search = options[:text]
+      words_to_ignore = options[:ignore] || []
       looking_for = options[:looking_for]
       old_matches = options[:matches] || {}
       if options[:matches] && (options[:merge_results].class == NilClass || options[:merge_results])
@@ -106,47 +107,49 @@ class Natural
         # look for the longest possible matches and work our way down to the short ones
         0.upto(words.size-1) do |first|
           (words.size-1).downto(first) do |last|
-            match = nil
-            selection = words[(first..last)].join(' ').strip.downcase
+            if ((first..last).to_a & words_to_ignore).blank?
+              match = nil
+              selection = words[(first..last)].join(' ').strip.downcase
 
-            if looking_for.include?(selection.singularize.downcase)
-              match = match_class.new(:ids => (first..last).to_a, :text => selection)
-            end
-
-            # didn't find a simple match, try swapping some or all words for alternatives and try again
-            if !match && !(match_class < Natural::Alternative)
-              fragments = old_matches.select {|k,v| k < Natural::Alternative && !v.blank?}.values.flatten.select {|a| a.ids.first >= first && a.ids.last <= last}
-
-              # assemble a list of all the possible, non-overlapping swaps
-              combinations = (1..fragments.size).inject([]) do |memo, i| 
-                fragments.combination(i).each do |combo|
-                  if !combo.combination(2).any? {|a| (a[0].ids.first..a[0].ids.last).overlaps?(a[1].ids.first..a[1].ids.last)}
-                    memo << combo
-                  end
-                end                
-                memo
+              if looking_for.include?(selection.singularize.downcase)
+                match = match_class.new(:ids => (first..last).to_a, :text => selection)
               end
 
-              combinations.each do |combo|
-                alternative_words = words.clone
-                alternative_fragments = []
+              # didn't find a simple match, try swapping some or all words for alternatives and try again
+              if !match && !(match_class < Natural::Alternative)
+                fragments = old_matches.select {|k,v| k < Natural::Alternative && !v.blank?}.values.flatten.select {|a| a.ids.first >= first && a.ids.last <= last}
 
-                combo.each do |fragment|
-                  alternative_words.slice!(fragment.ids.first..fragment.ids.last)
-                  alternative_words.insert(fragment.ids.first, fragment.to_s)
-                  alternative_fragments << fragment
+                # assemble a list of all the possible, non-overlapping swaps
+                combinations = (1..fragments.size).inject([]) do |memo, i| 
+                  fragments.combination(i).each do |combo|
+                    if !combo.combination(2).any? {|a| (a[0].ids.first..a[0].ids.last).overlaps?(a[1].ids.first..a[1].ids.last)}
+                      memo << combo
+                    end
+                  end                
+                  memo
                 end
-                alternative_selection = alternative_words[(first..last)].join(' ').strip.downcase
 
-                if looking_for.include?(alternative_selection.singularize.downcase)
-                  match = match_class.new(:ids => (first..last).to_a, :text => alternative_selection)
-                  leftovers = ((first..last).to_a - combo.map {|a| a.ids}.flatten).to_ranges
-                  leftovers.each do |range|
-                    alternative_fragments << Fragment.new(:ids => range.to_a, :text => words[range].join(' '))
+                combinations.each do |combo|
+                  alternative_words = words.clone
+                  alternative_fragments = []
+
+                  combo.each do |fragment|
+                    alternative_words.slice!(fragment.ids.first..fragment.ids.last)
+                    alternative_words.insert(fragment.ids.first, fragment.to_s)
+                    alternative_fragments << fragment
                   end
-                  alternative_fragments.sort_by {|a| a.ids.first}.each {|a| match << a}
-                end
+                  alternative_selection = alternative_words[(first..last)].join(' ').strip.downcase
 
+                  if looking_for.include?(alternative_selection.singularize.downcase)
+                    match = match_class.new(:ids => (first..last).to_a, :text => alternative_selection)
+                    leftovers = ((first..last).to_a - combo.map {|a| a.ids}.flatten).to_ranges
+                    leftovers.each do |range|
+                      alternative_fragments << Fragment.new(:ids => range.to_a, :text => words[range].join(' '))
+                    end
+                    alternative_fragments.sort_by {|a| a.ids.first}.each {|a| match << a}
+                  end
+
+                end
               end
             end
 

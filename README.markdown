@@ -131,7 +131,7 @@ Everything is singularized and downcased before being matched. `lib/natural/infl
 
 ## Generating the Answer
 
-### Sets
+### Data
 
 ### Filters
 
@@ -139,11 +139,17 @@ Everything is singularized and downcased before being matched. `lib/natural/infl
 
 ### Putting Them Together
 
-conform to the Natural way and use the built in answer method or navigate the tree and assemble sets, filters, and aggregators any way you want
+use the built in answer method or DIY: navigate the tree and assemble data, filters, and aggregators any way you want
 
 ## Performance
 
 Natural has not (yet) been optimized for cpu or memory usage. Natural works best with short questions and a small vocabulary.
+
+### Matching
+
+You can match according to the highest scoring combination of words (slower, defalt), or you can match in the order of the passed in fragment_classes, ignoring any words that are already matched (faster).
+
+	Natural.new('how many days of the week start with the letter T', :matching => :first_match, :fragment_classes => [StartsWithLetter, DayNames, Count]).answer
 
 ## Contributing to Natural
  
