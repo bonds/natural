@@ -191,9 +191,11 @@ class Natural
           looking_for[1..-1].each do |term|
             if term.class == Class && term <= Fragment
               new_matches = term.find(:text => text_to_search, :matches => old_matches, :spellings => options[:spellings], :synonyms => options[:synonyms], :expansions => options[:expansions]) if !old_matches[term]
-              new_matches[term].each do |match|
-                if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
-                  fragments << match
+              if new_matches[term]
+                new_matches[term].each do |match|
+                  if match.ids.first == fragments.select {|a| a}.last.ids.last + 1
+                    fragments << match
+                  end
                 end
               end
             elsif [Array, Hash, String].include?(term.class)
