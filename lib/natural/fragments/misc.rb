@@ -25,6 +25,6 @@ class Sum < Natural::Fragment
     super options.merge(:looking_for => {:or => ['spend', 'spent', 'total', {:and => ['how much did', Pronoun , 'spend']}, {:and => ['how much have', Pronoun, 'spent']}]})
   end
   def aggregator
-    'sum'
+    :sum
   end
 end

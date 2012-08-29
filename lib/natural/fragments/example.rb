@@ -6,7 +6,7 @@ class Count < Natural::Fragment
     super options.merge(:looking_for => ['how many'])
   end
   def aggregator
-    'count'
+    :count
   end
 end
 

@@ -129,13 +129,18 @@ class Natural
   def answer
     result = @parse.children.map_by_data(@options[:context]).select{|a| !a.blank?}.flatten
     @parse.children.map_by_all_filters.select{|a| !a.blank?}.each {|f| result = eval("result.#{f}")}
-    @parse.children.map_by_aggregator.select{|a| !a.blank?}.each {|a| result = eval("result.#{a}")}
+    
+    case @parse.children.map_by_aggregator.select{|a| !a.blank?}.first
+    when :sum
+      result = result.sum {|a| a.sum}
+    when :count
+      result = result.sum {|a| a.count}
+    end
+
     result
   end
     
-  private
-
-  def interpretation(crossout=true)
+  def interpretation(crossout=true, format=:text)
     result = ''
     @parse.children.each do |node|
       result += ' '
@@ -143,13 +148,19 @@ class Natural
       if !node.all_filters.blank? || node.data(@options[:context]) || node.aggregator
         result += node.to_s(:without_edits => true)
       elsif crossout == true
-        result += node.to_s.gsub(/[a-zA-Z]/,'-')
+        if format == :html
+          result += "<span class='unused'>#{node.to_s}</span>"
+        else
+          result += node.to_s.gsub(/[a-zA-Z]/,'-')
+        end
       end
       # result += CLEAR if @automatic_words && !(@automatic_words & node.ids).blank?
     end
 
     result.strip
   end
+
+  private
 
   def assemble_sequences(left_to_try, sequence_so_far=[])
     sequences = []
