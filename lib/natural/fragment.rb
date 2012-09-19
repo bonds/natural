@@ -23,16 +23,6 @@ class Natural
       @ids.size > 1 ? @ids.first..@ids.last : @ids.first
     end
 
-    def all_filters
-      if self.is_leaf?
-        self.filter
-      else
-        self.children.inject('') do |result, item| 
-          result = [result, self.filter, item.all_filters].select{|a| !a.blank?}.uniq.join('.')
-        end
-      end
-    end
-
     # recurse to the leaves and print out all the words, applying all edits along the way
     def to_s(options={})
       if self.is_leaf?
@@ -67,12 +57,12 @@ class Natural
       result
     end
 
-    def data(context=nil)
-      nil
-    end
-
     def score
       self.to_s.split(' ').size ** 2
+    end
+
+    def meaning
+      {}
     end
 
     def clone(height=nil)

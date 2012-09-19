@@ -126,18 +126,37 @@ class Natural
     parse
   end
 
-  def answer
-    result = @parse.children.map_by_data(@options[:context]).select{|a| !a.blank?}.flatten
-    @parse.children.map_by_all_filters.select{|a| !a.blank?}.each {|f| result = eval("result.#{f}")}
-    
-    case @parse.children.map_by_aggregator.select{|a| !a.blank?}.first
-    when :sum
-      result = result.sum {|a| a.sum}
-    when :count
-      result = result.sum {|a| a.count}
+  def meaning
+    result = {}
+
+    @parse.children.map_by_meaning.each do |meaning|
+      meaning.each do |k,v|
+        if result[k].blank?
+          result[k] = []
+        end
+        result[k] << v
+      end
     end
 
-    result
+    if result[:select].blank?
+      result[:select] = ['*']
+    end
+    if result[:from] && result[:from].size == 1 && result[:select] && result[:select].include?("count(*)")
+      result[:select][result[:select].index("count(*)")] = "count(*) as #{result[:from].first}"
+    end
+
+    if !result[:from].blank?
+      query  = ""
+      query += "SELECT #{result[:select].join(', ')}"
+      query += " FROM #{result[:from].join(', ')}" 
+      query += " WHERE #{result[:where].join(' AND ')}" if !result[:where].blank?
+      query += " GROUP BY #{result[:group_by].join(', ')}" if !result[:group_by].blank?
+      query += " LIMIT 10000"
+    else
+      query = nil
+    end
+
+    query
   end
     
   def interpretation(crossout=true, format=:text)
@@ -145,7 +164,7 @@ class Natural
     @parse.children.each do |node|
       result += ' '
       # result += YELLOW if @automatic_words && !(@automatic_words & node.ids).blank?
-      if !node.all_filters.blank? || node.data(@options[:context]) || node.aggregator
+      if !node.meaning.blank?
         result += node.to_s(:without_edits => true)
       elsif crossout == true
         if format == :html
@@ -157,7 +176,7 @@ class Natural
       # result += CLEAR if @automatic_words && !(@automatic_words & node.ids).blank?
     end
 
-    result.strip
+    result.strip.squeeze(' ')
   end
 
   private

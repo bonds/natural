@@ -5,8 +5,10 @@ class Count < Natural::Fragment
   def self.find(options)
     super options.merge(:looking_for => ['how many'])
   end
-  def aggregator
-    :count
+  def meaning
+    {
+      :select => "count(*)"
+    }
   end
 end
 
@@ -15,8 +17,10 @@ class DayNames < Natural::Fragment
   def self.find(options)
     super options.merge(:looking_for => ['days of the week'])
   end
-  def data(context)
-    Date::DAYNAMES
+  def meaning
+    {
+      :from => '(' + Date::DAYNAMES.map{|a| "SELECT '#{a}' as day_name"}.join(' UNION ALL ') + ') as day_names'
+    }
   end
 end
 
@@ -32,7 +36,9 @@ class StartsWithLetter < Natural::Fragment
   def self.find(options)
     super options.merge(:looking_for => {:and => ['start with the letter', {:or => ('a'..'z').to_a}]})
   end
-  def filter
-    "select {|a| a[0].downcase == '#{self.children.last.to_s.downcase}'}"
+  def meaning
+    {
+      :where => "column_to_filter LIKE #{children.last.text}%"
+    }
   end
 end
