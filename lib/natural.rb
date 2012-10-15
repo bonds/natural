@@ -184,6 +184,12 @@ class Natural
     result.strip.squeeze(' ')
   end
 
+  def self.possibilities
+    fragment_classes = ObjectSpace.each_object(Class).select {|a| a < Natural::Fragment && a != Natural::Unused}
+    result = find_possibilities(fragment_classes.map{|a| a.looking_for}.select{|a| !a.blank?})
+    result = result.map{|a| a.flatten}
+  end
+
   private
 
   def assemble_sequences(left_to_try, sequence_so_far=[])
@@ -197,6 +203,31 @@ class Natural
     end
 
     return sequences
+  end
+
+  def self.find_possibilities(item)
+    case
+    when item.class == Class
+      result = find_possibilities(item.looking_for)
+    when item.class == Hash
+      if item[:and]
+        items = item[:and].map{|a| find_possibilities(a)}
+        result = items[0].class == Array ? items[0] : [items[0]]
+        1.upto(items.size-1) do |i|
+          result = result.map{|a| a.class == Array ? a : [a]}.product(items[i].class == Array ? items[i] : [items[i]]).map {|a| a.join(' ')}
+        end
+      else
+        result = find_possibilities(item[:or])
+      end
+    when item.class == Array
+      result = item.map{|a| find_possibilities(a)}
+    when item.class == String
+      result = item
+    else
+      raise "Wasn't expecting a #{item.class}"
+    end
+
+    result
   end
 
 end

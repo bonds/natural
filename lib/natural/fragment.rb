@@ -75,10 +75,14 @@ class Natural
       result
     end
 
+    def self.looking_for
+      []
+    end
+
     def self.find(options)
       text_to_search = options[:text]
       words_to_ignore = options[:ignore] || []
-      looking_for = options[:looking_for]
+      looking_for = options[:looking_for] || self.looking_for
       old_matches = options[:matches] || {}
       if options[:matches] && (options[:merge_results].class == NilClass || options[:merge_results])
         new_matches = options[:matches]

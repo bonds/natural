@@ -2,8 +2,8 @@
 
 # e.g. how many
 class Count < Natural::Fragment
-  def self.find(options)
-    super options.merge(:looking_for => ['how many'])
+  def self.looking_for
+    ['how many']
   end
   def meaning
     {
@@ -14,8 +14,8 @@ end
 
 # e.g. days of the week
 class DayNames < Natural::Fragment
-  def self.find(options)
-    super options.merge(:looking_for => ['days of the week'])
+  def self.looking_for
+    ['days of the week']
   end
   def meaning
     {
@@ -26,15 +26,15 @@ end
 
 # e.g. blu-ray
 class BluRay < Natural::Fragment
-  def self.find(options)
-    super options.merge(:looking_for => ['blu-ray'])
+  def self.looking_for
+    ['blu-ray']
   end
 end
 
 # e.g. start with the letter t
 class StartsWithLetter < Natural::Fragment
-  def self.find(options)
-    super options.merge(:looking_for => {:and => ['start with the letter', {:or => ('a'..'z').to_a}]})
+  def self.looking_for
+    {:and => ['start with the letter', {:or => ('a'..'z').to_a}]}
   end
   def meaning
     {
