@@ -142,7 +142,12 @@ class Natural
       result[:select] = ['*']
     end
     if result[:from] && result[:from].size == 1 && result[:select] && result[:select].include?("count(*)")
-      result[:select][result[:select].index("count(*)")] = "count(*) as #{result[:from].first}"
+      if result[:from].first.downcase =~ /.*\) as .*/m
+        count_table_name = result[:from].first.downcase.match(/.*\) as (.*)/m)[1]
+      else
+        count_table_name = result[:from].first.split(' ').first
+      end
+      result[:select][result[:select].index("count(*)")] = "count(*) as #{count_table_name}"
     end
 
     if !result[:from].blank?
